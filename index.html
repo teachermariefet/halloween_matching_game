@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halloween Matching Game</title>
+    <!-- Tailwind CSS for modern responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Balsamiq Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        /* Apply Balsamiq Sans as primary font with rounded sans-serif fallback */
+        body {
+            font-family: 'Balsamiq Sans', cursive, sans-serif;
+            background: linear-gradient(135deg, #2e1065 0%, #4c1d95 50%, #1e1b4b 100%);
+            min-height: 100vh;
+        }
+
+        /* Card Flip Animation Styles */
+        .card-container {
+            perspective: 1000px;
+        }
+        .card-inner {
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Pulse animation for celebratory win banner */
+        @keyframes spookyBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-spooky {
+            animation: spookyBounce 2s ease-in-out infinite;
+        }
+
+        /* Confetti particle styling */
+        .confetti-particle {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            z-index: 100;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="text-white flex flex-col items-center justify-between min-h-screen p-4 sm:p-6 select-none relative overflow-x-hidden">
+
+    <!-- Header Section -->
+    <header class="w-full max-w-4xl text-center mb-4">
+        <h1 class="text-3xl sm:text-5xl font-bold text-orange-400 drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] mb-2 animate-spooky">
+            🎃 Halloween Matching Game 🎃
+        </h1>
+        <p class="text-lg sm:text-2xl text-purple-200 font-medium">
+            Find the matching pairs!
+        </p>
+    </header>
+
+    <!-- Controls & Status Bar -->
+    <div class="w-full max-w-4xl flex flex-wrap items-center justify-between gap-4 bg-purple-900/60 backdrop-blur-md p-4 rounded-2xl border-2 border-orange-500/50 shadow-xl mb-6">
+        <!-- Pairs Found Counter -->
+        <div class="flex items-center gap-2 bg-purple-950/80 px-4 py-2 rounded-xl border border-purple-700">
+            <span class="text-2xl">👻</span>
+            <span id="scoreText" class="text-lg sm:text-xl font-bold text-orange-300">Pairs Found: 0 / 8</span>
+        </div>
+
+        <!-- Action Buttons Group -->
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Music Toggle Button -->
+            <button id="musicToggleBtn" onclick="toggleMusic()" class="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold px-4 py-2 rounded-xl shadow-lg transition-all border-b-4 border-orange-800 focus:outline-none focus:ring-2 focus:ring-orange-300" aria-label="Toggle Background Music">
+                <span id="musicIcon">🔇</span>
+                <span id="musicBtnText">Music: Off</span>
+            </button>
+
+            <!-- Fullscreen Button -->
+            <button id="fullscreenBtn" onclick="toggleFullscreen()" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-bold px-4 py-2 rounded-xl shadow-lg transition-all border-b-4 border-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-300" aria-label="Fullscreen">
+                <span>🖥️</span>
+                <span id="fullscreenBtnText">Fullscreen</span>
+            </button>
+
+            <!-- Play Again Button -->
+            <button onclick="resetGame()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-5 py-2 rounded-xl shadow-lg transition-all border-b-4 border-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-300" aria-label="Play Again">
+                <span>🔄</span>
+                <span>Play Again</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game Board Container -->
+    <main class="w-full max-w-3xl flex-grow flex items-center justify-center mb-6">
+        <!-- 4x4 Grid for 16 boxes -->
+        <div id="gameBoard" class="grid grid-cols-4 gap-3 sm:gap-4 w-full aspect-square max-w-[600px]">
+            <!-- Dynamically populated cards via JavaScript -->
+        </div>
+    </main>
+
+    <!-- Winning Modal / Banner Overlay -->
+    <div id="winModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-gradient-to-b from-purple-900 to-indigo-950 border-4 border-orange-500 p-6 sm:p-8 rounded-3xl shadow-2xl text-center max-w-md w-full animate-spooky">
+            <div class="text-6xl mb-3">🎉🦇🎉</div>
+            <h2 class="text-2xl sm:text-3xl font-bold text-orange-400 mb-2">Great job! You found all the pairs!</h2>
+            <p class="text-purple-200 text-base sm:text-lg mb-6">You successfully mastered your Halloween vocabulary!</p>
+            <button onclick="resetGame(); closeModal();" class="bg-orange-500 hover:bg-orange-400 text-white font-bold text-lg px-8 py-3 rounded-2xl shadow-xl border-b-4 border-orange-700 active:scale-95 transition-all">
+                Play Again!
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer Information -->
+    <footer class="text-xs sm:text-sm text-purple-300/80 text-center">
+        Halloween Matching Game • Designed for EFL Students 🎃
+    </footer>
+
+    <!-- JavaScript Game Logic -->
+    <script>
+        // Vocabulary items with exact lowercase names and image filenames
+        const vocabData = [
+            { name: "mummy", image: "mummy.png" },
+            { name: "ghost", image: "ghost.png" },
+            { name: "pumpkin", image: "pumpkin.png" },
+            { name: "spider", image: "spider.png" },
+            { name: "witch", image: "witch.png" },
+            { name: "vampire", image: "vampire.png" },
+            { name: "bat", image: "bat.png" },
+            { name: "skeleton", image: "skeleton.png" }
+        ];
+
+        // Game State Variables
+        let cards = [];
+        let firstSelection = null;
+        let secondSelection = null;
+        let lockBoard = false;
+        let pairsFound = 0;
+        let timeoutId = null;
+
+        // Web Audio & Background Music State
+        let audioCtx = null;
+        let bgmOscillatorNodes = [];
+        let bgmGainNode = null;
+        let isMusicPlaying = false;
+        let bgmInterval = null;
+
+        // Initialize game on window load
+        window.onload = function () {
+            initGame();
+            document.addEventListener("fullscreenchange", updateFullscreenButtonLabel);
+        };
+
+        // Initialize Web Audio Context (must be triggered by user gesture)
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Initialize or Reset Game Board
+        function resetGame() {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+
+            firstSelection = null;
+            secondSelection = null;
+            lockBoard = false;
+            pairsFound = 0;
+            updateScoreDisplay();
+            closeModal();
+
+            let cardPairs = [];
+            vocabData.forEach((item, index) => {
+                cardPairs.push({ id: index * 2, name: item.name, image: item.image });
+                cardPairs.push({ id: index * 2 + 1, name: item.name, image: item.image });
+            });
+
+            cards = cardPairs.sort(() => Math.random() - 0.5);
+            renderBoard();
+        }
+
+        function initGame() {
+            resetGame();
+        }
+
+        // Render the 16 numbered boxes
+        function renderBoard() {
+            const board = document.getElementById("gameBoard");
+            board.innerHTML = "";
+
+            cards.forEach((card, index) => {
+                const boxNumber = index + 1;
+                
+                const cardContainer = document.createElement("div");
+                cardContainer.className = "card-container w-full h-full cursor-pointer";
+                cardContainer.setAttribute("data-index", index);
+
+                cardContainer.innerHTML = `
+                    <div class="card-inner relative w-full h-full rounded-2xl shadow-lg" id="card-inner-${index}">
+                        <!-- Front Face: Numbered Box -->
+                        <div class="card-front absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-600 border-2 border-orange-300 rounded-2xl flex items-center justify-center text-2xl sm:text-4xl font-extrabold text-white shadow-inner hover:from-orange-400 hover:to-amber-500 transition-colors">
+                            ${boxNumber}
+                        </div>
+                        <!-- Back Face: Halloween Image -->
+                        <div class="card-back absolute inset-0 bg-purple-950 border-2 border-purple-400 rounded-2xl flex flex-col items-center justify-center p-2 shadow-inner">
+                            <img src="${card.image}" alt="${card.name}" class="max-w-[80%] max-h-[75%] object-contain drop-shadow-md" onerror="this.onerror=null; this.src='https://placehold.co/150x150/4c1d95/ffedd5?text=${card.name}';">
+                            <span class="text-[10px] sm:text-xs text-orange-200 mt-1 lowercase font-bold">${card.name}</span>
+                        </div>
+                    </div>
+                `;
+
+                cardContainer.addEventListener("click", () => handleCardClick(index));
+                board.appendChild(cardContainer);
+            });
+        }
+
+        // Handle Card Selection Mechanics
+        function handleCardClick(index) {
+            if (lockBoard) return;
+            const cardInner = document.getElementById(`card-inner-${index}`);
+            if (cardInner.classList.contains("flipped")) return;
+            if (firstSelection === index) return;
+
+            // Ensure audio context is unlocked/active on user interaction
+            initAudioContext();
+
+            cardInner.classList.add("flipped");
+
+            if (firstSelection === null) {
+                firstSelection = index;
+            } else {
+                secondSelection = index;
+                lockBoard = true;
+                checkForMatch();
+            }
+        }
+
+        // Check if selected pair matches
+        function checkForMatch() {
+            const card1 = cards[firstSelection];
+            const card2 = cards[secondSelection];
+
+            if (card1.name === card2.name) {
+                // Match found!
+                pairsFound++;
+                updateScoreDisplay();
+                
+                // Play match sound effect & trigger confetti
+                playMatchSound();
+                triggerConfetti();
+
+                resetTurnState();
+
+                if (pairsFound === vocabData.length) {
+                    setTimeout(() => {
+                        showWinModal();
+                        triggerBigConfetti();
+                    }, 500);
+                }
+            } else {
+                // Mismatch: show both briefly, then flip back
+                timeoutId = setTimeout(() => {
+                    const cardInner1 = document.getElementById(`card-inner-${firstSelection}`);
+                    const cardInner2 = document.getElementById(`card-inner-${secondSelection}`);
+                    
+                    if (cardInner1) cardInner1.classList.remove("flipped");
+                    if (cardInner2) cardInner2.classList.remove("flipped");
+
+                    resetTurnState();
+                }, 1000);
+            }
+        }
+
+        function resetTurnState() {
+            firstSelection = null;
+            secondSelection = null;
+            lockBoard = false;
+            timeoutId = null;
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById("scoreText").innerText = `Pairs Found: ${pairsFound} / 8`;
+        }
+
+        // Winning Modal Controls
+        function showWinModal() {
+            document.getElementById("winModal").classList.remove("hidden");
+            document.getElementById("winModal").classList.add("flex");
+        }
+
+        function closeModal() {
+            document.getElementById("winModal").classList.remove("flex");
+            document.getElementById("winModal").classList.add("hidden");
+        }
+
+        // Web Audio API: Synthesized Match Sound Effect (Cheerful Chime)
+        function playMatchSound() {
+            try {
+                initAudioContext();
+                if (!audioCtx) return;
+
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                // Play a cheerful ascending arpeggio notes (C5, E5, G5, C6)
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, i) => {
+                    osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                });
+
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.4);
+            } catch (e) {
+                console.log("Audio play error:", e);
+            }
+        }
+
+        // Confetti Particle Effect Generator
+        function triggerConfetti() {
+            const colors = ['#f97316', '#a855f7', '#38bdf8', '#fbbf24', '#34d399'];
+            for (let i = 0; i < 35; i++) {
+                createParticle(colors[Math.floor(Math.random() * colors.length)]);
+            }
+        }
+
+        function triggerBigConfetti() {
+            const colors = ['#f97316', '#a855f7', '#38bdf8', '#fbbf24', '#34d399', '#ec4899'];
+            for (let i = 0; i < 80; i++) {
+                createParticle(colors[Math.floor(Math.random() * colors.length)]);
+            }
+        }
+
+        function createParticle(color) {
+            const particle = document.createElement('div');
+            particle.className = 'confetti-particle';
+            particle.style.backgroundColor = color;
+            particle.style.left = Math.random() * window.innerWidth + 'px';
+            particle.style.top = '-20px';
+            particle.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+            
+            const duration = Math.random() * 1.5 + 1.5;
+            const size = Math.random() * 8 + 6;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+            particle.style.animationDuration = duration + 's';
+
+            document.body.appendChild(particle);
+            setTimeout(() => {
+                particle.remove();
+            }, duration * 1000);
+        }
+
+        // Robust Background Music Synthesizer & Toggle
+        function toggleMusic() {
+            initAudioContext();
+            if (isMusicPlaying) {
+                stopBackgroundMusic();
+                isMusicPlaying = false;
+                updateMusicButtonUI(false);
+            } else {
+                startBackgroundMusic();
+                isMusicPlaying = true;
+                updateMusicButtonUI(true);
+            }
+        }
+
+        function startBackgroundMusic() {
+            if (!audioCtx) return;
+            stopBackgroundMusic(); // clear any existing
+
+            // Create gentle spooky/fun looping synth arpeggio background music (~10% volume)
+            bgmGainNode = audioCtx.createGain();
+            bgmGainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            bgmGainNode.connect(audioCtx.destination);
+
+            const melody = [220, 246.94, 261.63, 293.66, 329.63, 293.66, 261.63, 246.94];
+            let noteIndex = 0;
+
+            bgmInterval = setInterval(() => {
+                if (!isMusicPlaying || !audioCtx) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const noteGain = audioCtx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(melody[noteIndex], audioCtx.currentTime);
+                    
+                    noteGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+
+                    osc.connect(noteGain);
+                    noteGain.connect(bgmGainNode);
+
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.6);
+
+                    noteIndex = (noteIndex + 1) % melody.length;
+                } catch (e) {
+                    console.log("BGM playback error:", e);
+                }
+            }, 500);
+        }
+
+        function stopBackgroundMusic() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+            if (bgmGainNode) {
+                try {
+                    bgmGainNode.disconnect();
+                } catch (e) {}
+                bgmGainNode = null;
+            }
+        }
+
+        function updateMusicButtonUI(isPlaying) {
+            const musicIcon = document.getElementById("musicIcon");
+            const musicBtnText = document.getElementById("musicBtnText");
+            if (isPlaying) {
+                musicIcon.innerText = "🔊";
+                musicBtnText.innerText = "Music: On";
+            } else {
+                musicIcon.innerText = "🔇";
+                musicBtnText.innerText = "Music: Off";
+            }
+        }
+
+        // Fullscreen API Functionality
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Error attempting to enable fullscreen:", err);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        function updateFullscreenButtonLabel() {
+            const fullscreenBtnText = document.getElementById("fullscreenBtnText");
+            if (document.fullscreenElement) {
+                fullscreenBtnText.innerText = "Exit Fullscreen";
+            } else {
+                fullscreenBtnText.innerText = "Fullscreen";
+            }
+        }
+    </script>
+</body>
+</html>
